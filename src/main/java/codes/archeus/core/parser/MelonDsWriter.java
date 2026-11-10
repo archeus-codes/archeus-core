@@ -48,8 +48,9 @@ import codes.archeus.core.domain.Game;
  * {@code CAT <0|1>} starts a folder (1: only one of its codes may be on), {@code ROOT} the top level codes, and
  * {@code CODE <0|1>} a code that starts off or on. {@code DESC} describes the line before it; {@code #} lines are ignored.
  *
- * <p>The file is one melonDS loads unchanged: names and descriptions fit its limits ({@link #name}, {@link #describe}),
- * only the first code in a one-choice folder is on, and codes with placeholder lines, which it can't read, are left out.
+ * <p>The file is one melonDS loads unchanged: names and descriptions fit its limits ({@link #name},
+ * {@link #describe}), only the first code in a one at a time folder is on, and codes with placeholder lines, which it
+ * can't read, are left out.
  */
 public class MelonDsWriter {
 	public static final String EXTENSION = ".mch";
@@ -147,8 +148,8 @@ public class MelonDsWriter {
 	}
 
 	/**
-	 * Writes the folder and its codes. In a one-choice folder only the first enabled code is written as on, since melonDS
-	 * switches off the rest when it loads the file.
+	 * Writes the folder and its codes. In a one at a time folder only the first enabled code is written as on, since
+	 * melonDS switches off the rest when it loads the file.
 	 */
 	private static void writeFolder(Writer writer, Folder folder) throws IOException {
 		Description description = describe(folder.getComment());

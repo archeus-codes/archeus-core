@@ -27,8 +27,8 @@ import codes.archeus.core.domain.Game;
 /**
  * Applies the limits of a USAY record (EDGE and CycloDS Evolution) to games: one byte counts a folder's codes and one
  * byte counts a code's lines. A folder with more codes is split into parts, such as {@code Items (1/8)}, each keeping
- * the folder's comment and one-at-a-time setting and its place among the game's entries. A code with more lines can't
- * be split, so it's left out, and so is a folder that leaves empty. The games passed in aren't changed.
+ * the folder's comment, its one at a time setting and its place among the game's entries. A code with more lines
+ * can't be split, so it's left out, and so is a folder that leaves empty. The games passed in aren't changed.
  */
 public final class UsayLimits {
 	/** The most codes a USAY folder can hold. */

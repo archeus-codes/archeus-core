@@ -69,7 +69,7 @@ A project can then depend on it:
 <dependency>
   <groupId>codes.archeus</groupId>
   <artifactId>archeus-core</artifactId>
-  <version>1.0.0-SNAPSHOT</version>
+  <version>1.0.0</version>
 </dependency>
 ```
 

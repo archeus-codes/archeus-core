@@ -178,8 +178,11 @@ abstract class AbstractCycloDsParser implements CheatFileParser {
 		byte[] md5Stored = Arrays.copyOfRange(blockHeader, 8, 8 + MD5_LENGTH);
 		int compressedDataOffset = fileOffset + BLOCK_HEADER_SIZE;
 
-		if (compressedSize < 0 || compressedSize > end - compressedDataOffset
-				|| decompressedSize < 0 || decompressedSize > MAX_DECOMPRESSED_SIZE) {
+		if (compressedSize < 0
+				|| compressedSize > end - compressedDataOffset
+				|| decompressedSize < 0
+				|| decompressedSize > MAX_DECOMPRESSED_SIZE
+		) {
 			throw new UsercheatParserException("has sizes that don't fit the file");
 		}
 

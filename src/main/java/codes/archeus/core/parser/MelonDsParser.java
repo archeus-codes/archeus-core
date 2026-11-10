@@ -61,13 +61,14 @@ public class MelonDsParser {
 	}
 
 	/**
-	 * melonDS switches off all but the first enabled code in a one-choice folder, so more than one is a change.
+	 * melonDS switches off all but the first enabled code in a one at a time folder, so more than one is a change.
 	 */
 	private static void requireOneCodeOnPerOneChoiceFolder(Game game) {
 		for (Folder folder : game.getFolders()) {
 			if (folder.isModifier() && folder.getCodes().stream().filter(Code::isEnabled).count() > 1) {
 				throw new UsercheatParserException(
-						"melonDS cheat file folder \"" + folder.getTitle() + "\" is one-choice but has several codes on"
+						"melonDS cheat file folder \"" + folder.getTitle()
+								+ "\" is one at a time but has several codes on"
 				);
 			}
 		}

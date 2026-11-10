@@ -89,7 +89,7 @@ class MelonDsParserTest {
 	void parse_oneChoiceFolderWithSeveralCodesOn_throws() {
 		assertRefused(
 				"CAT 1 Weather\nCODE 1 Sunny\n12345678 00000001\nCODE 1 Rain\n12345678 00000002\n",
-				"folder \"Weather\" is one-choice but has several codes on"
+				"folder \"Weather\" is one at a time but has several codes on"
 		);
 	}
 
