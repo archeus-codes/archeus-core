@@ -77,10 +77,17 @@ It has one dependency, the SLF4J API, for logging.
 
 ## Credits
 
+- **Datel**, for the Action Replay DS and DSi, whose code types the decoder reads, and whose Code Manager's XML
+  format the library reads and writes.
 - **Yasu**, for R4CCE (R4 Cheat Code Editor), which the EDGE and CycloDS Evolution formats were worked out from.
 - **Martin Korth**, for [GBATEK](https://problemkaputt.de/gbatek.htm), the Nintendo DS hardware reference.
+- **The contributors to [EnHacklopedia](https://doc.kodewerx.org/hacking_nds.html)**, the code hacking reference started
+  at Kodewerx and kept up in a fork on the [GameHacking.org wiki](https://wiki.gamehacking.org/Hacking_NDS), for its
+  documentation of the Action Replay DS code types.
 - **Chishm**, for [Nitrohax](https://github.com/chishm/nitrohax), whose cheat engine's extra code types the decoder
   reads.
+- **Rimsky82**, owner and maintainer of [GameHacking.org](https://gamehacking.org), whose site offering code exports in
+  many cheat formats inspired Archeus to support as many as it does.
 
 ## License
 
