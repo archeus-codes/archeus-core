@@ -49,10 +49,27 @@ try (var file = new RandomAccessFile("usrcheat.dat", "r")) {
 }
 ```
 
-The XML, EDGE and CycloDS formats work the same way through `CheatFileParser` and `CheatFileWriter`, while melonDS
-and RetroArch read and write one game per file. An EDGE or CycloDS file holds at most 4,096 games, so split a larger
-database with `UsayParts.split` and write each part to its own file. A file that's damaged or cut short throws
-`UsercheatParserException`, saying where.
+The XML, EDGE and CycloDS formats work the same way through `CheatFileParser` and `CheatFileWriter`. An EDGE or
+CycloDS file holds at most 4,096 games, so split a larger database with `UsayParts.split` and write each part to its
+own file.
+
+melonDS and RetroArch read and write one game per file. Writing every game as a RetroArch `.cht`, in a
+`Nintendo - Nintendo DS` folder, where RetroArch looks for DS cheats (`Game` is in `codes.archeus.core.domain`):
+
+```java
+try (var file = new RandomAccessFile("usrcheat.dat", "r")) {
+    ParseResult database = new UsercheatDatParser().parse(file);
+    Path folder = Files.createDirectories(Path.of("Nintendo - Nintendo DS"));
+
+    for (Game game : database.games()) {
+        try (var out = Files.newOutputStream(folder.resolve(RetroArchWriter.fileName(game)))) {
+            new RetroArchWriter().write(game, out);
+        }
+    }
+}
+```
+
+A file that's damaged or cut short throws `UsercheatParserException`, saying where.
 
 ## Building
 
