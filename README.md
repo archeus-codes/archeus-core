@@ -103,6 +103,10 @@ It has one dependency, the SLF4J API, for logging.
   documentation of the Action Replay DS code types.
 - **Chishm**, for [Nitrohax](https://github.com/chishm/nitrohax), whose cheat engine's extra code types the decoder
   reads.
+- **The [melonDS](https://melonds.kuribo64.net) team**, whose cheat file reader (`ARCodeFile.cpp`) sets the rules the
+  library writes and checks melonDS files by.
+- **The [libretro](https://www.libretro.com) team**, for RetroArch and the DS cheat files in the
+  [libretro database](https://github.com/libretro/libretro-database), whose layout the library's RetroArch files follow.
 - **Rimsky82**, owner and maintainer of [GameHacking.org](https://gamehacking.org), whose site offering code exports in
   many cheat formats inspired Archeus to support as many as it does.
 

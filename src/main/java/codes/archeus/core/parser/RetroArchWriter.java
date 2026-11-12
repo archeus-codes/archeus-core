@@ -36,14 +36,14 @@ import codes.archeus.core.domain.Game;
  * <pre>
  * cheats = 3
  *
- * cheat0_desc = "Infinite Health"
- * cheat0_code = "52007DEC+AA000018"
+ * cheat0_desc = "Moon Jump (Hold L)"
+ * cheat0_code = "94000130+FDFF0000+120A1B2C+0000F000+D2000000+00000000"
  * cheat0_enable = false
  *
  * cheat1_desc = "Weather Mod Codes"
  *
  * cheat2_desc = "Sunny"
- * cheat2_code = "12345678+00000001"
+ * cheat2_code = "22041A30+00000001"
  * cheat2_enable = false
  * </pre>
  * An entry with only a description is a folder's heading, so top level codes come first. Descriptions are titles only,

@@ -37,16 +37,19 @@ import codes.archeus.core.domain.Game;
  * <pre>
  * ROOT
  *
- * CODE 1 Infinite Health
- * DESC By Datel
- * 52007DEC AA000018
+ * CODE 1 Moon Jump (Hold L)
+ * DESC Hold L to float upward
+ * 94000130 FDFF0000
+ * 120A1B2C 0000F000
+ * D2000000 00000000
  *
  * CAT 1 Weather Mod Codes
  * CODE 0 Sunny
- * 12345678 00000001
+ * 22041A30 00000001
  * </pre>
  * {@code CAT <0|1>} starts a folder (1: only one of its codes may be on), {@code ROOT} the top level codes, and
- * {@code CODE <0|1>} a code that starts off or on. {@code DESC} describes the line before it; {@code #} lines are ignored.
+ * {@code CODE <0|1>} a code that starts off or on. {@code DESC} describes the line before it; {@code #} lines are
+ * ignored.
  *
  * <p>The file is one melonDS loads unchanged: names and descriptions fit its limits ({@link #name},
  * {@link #describe}), only the first code in a one at a time folder is on, and codes with placeholder lines, which it
