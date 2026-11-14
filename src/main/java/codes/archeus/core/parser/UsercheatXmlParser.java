@@ -77,12 +77,13 @@ public class UsercheatXmlParser implements CheatFileParser {
 		var cheatFile = new CheatFile();
 		List<Game> games = new ArrayList<>();
 		boolean actionReplay = format == XmlFormat.ACTION_REPLAY;
+		var pool = new StringPool();
 
 		while (xml.hasNext()) {
 			if (xml.next() == START_ELEMENT) {
 				switch (xml.getLocalName()) {
 				case "subscription" -> actionReplay = true;
-				case "codelist" -> parseCodelist(xml, cheatFile, games, actionReplay);
+				case "codelist" -> parseCodelist(xml, cheatFile, games, actionReplay, pool);
 				}
 			}
 		}
@@ -95,14 +96,15 @@ public class UsercheatXmlParser implements CheatFileParser {
 			XMLStreamReader xml,
 			CheatFile cheatFile,
 			List<Game> games,
-			boolean actionReplay
+			boolean actionReplay,
+			StringPool pool
 	) throws XMLStreamException {
 		while (xml.hasNext()) {
 			int event = xml.next();
 			if (event == START_ELEMENT) {
 				switch (xml.getLocalName()) {
 				case "name" -> cheatFile.setTitle(readText(xml));
-				case "game" -> games.add(parseGame(xml, actionReplay));
+				case "game" -> games.add(parseGame(xml, actionReplay, pool));
 				}
 			} else if (event == END_ELEMENT && "codelist".equals(xml.getLocalName())) {
 				return;
@@ -110,18 +112,18 @@ public class UsercheatXmlParser implements CheatFileParser {
 		}
 	}
 
-	private Game parseGame(XMLStreamReader xml, boolean actionReplay) throws XMLStreamException {
+	private Game parseGame(XMLStreamReader xml, boolean actionReplay, StringPool pool) throws XMLStreamException {
 		var game = new Game();
 
 		while (xml.hasNext()) {
 			int event = xml.next();
 			if (event == START_ELEMENT) {
 				switch (xml.getLocalName()) {
-				case "name" -> game.setTitle(readText(xml));
+				case "name" -> game.setTitle(readText(xml, pool));
 				case "gameid" -> applyGameId(game, readText(xml));
 				case "date" -> readText(xml); // not kept
-				case "cheat" -> applyGameCheat(xml, game, actionReplay);
-				case "folder" -> game.getFolders().add(parseFolder(xml));
+				case "cheat" -> applyGameCheat(xml, game, actionReplay, pool);
+				case "folder" -> game.getFolders().add(parseFolder(xml, pool));
 				}
 			} else if (event == END_ELEMENT && "game".equals(xml.getLocalName())) {
 				return game;
@@ -144,7 +146,12 @@ public class UsercheatXmlParser implements CheatFileParser {
 	 * Adds a top level cheat to the game. The master code cheat holds the flash cart master code in an R4CCE file, and
 	 * the Action Replay one in an Action Replay file, which becomes a top level "Master Code" code.
 	 */
-	private void applyGameCheat(XMLStreamReader xml, Game game, boolean actionReplay) throws XMLStreamException {
+	private void applyGameCheat(
+			XMLStreamReader xml,
+			Game game,
+			boolean actionReplay,
+			StringPool pool
+	) throws XMLStreamException {
 		String name = "";
 		String note = "";
 		String codesText = "";
@@ -153,8 +160,8 @@ public class UsercheatXmlParser implements CheatFileParser {
 			int event = xml.next();
 			if (event == START_ELEMENT) {
 				switch (xml.getLocalName()) {
-				case "name" -> name = readText(xml);
-				case "note" -> note = readText(xml);
+				case "name" -> name = readText(xml, pool);
+				case "note" -> note = readText(xml, pool);
 				case "codes" -> codesText = readText(xml);
 				}
 			} else if (event == END_ELEMENT && "cheat".equals(xml.getLocalName())) {
@@ -163,15 +170,15 @@ public class UsercheatXmlParser implements CheatFileParser {
 		}
 
 		if (!isMasterCode(name, codesText)) {
-			game.getCodes().add(code(name, note, parseCodeLines(codesText)));
+			game.getCodes().add(code(name, note, parseCodeLines(codesText, pool)));
 		} else if (actionReplay) {
 			game.getCodes().add(code(
 					CheatFileConstants.ACTION_REPLAY_MASTER_CODE_TITLE,
 					note,
-					parseCodeLines(withoutMasterPrefix(codesText))
+					parseCodeLines(withoutMasterPrefix(codesText), pool)
 			));
 		} else {
-			game.setMasterCode(parseFlashCartMasterCode(codesText));
+			game.setMasterCode(parseFlashCartMasterCode(codesText, pool));
 		}
 	}
 
@@ -183,17 +190,17 @@ public class UsercheatXmlParser implements CheatFileParser {
 		return code;
 	}
 
-	private Folder parseFolder(XMLStreamReader xml) throws XMLStreamException {
+	private Folder parseFolder(XMLStreamReader xml, StringPool pool) throws XMLStreamException {
 		var folder = new Folder();
 
 		while (xml.hasNext()) {
 			int event = xml.next();
 			if (event == START_ELEMENT) {
 				switch (xml.getLocalName()) {
-				case "name" -> folder.setTitle(readText(xml));
-				case "note" -> folder.setComment(readText(xml));
+				case "name" -> folder.setTitle(readText(xml, pool));
+				case "note" -> folder.setComment(readText(xml, pool));
 				case "allowedon" -> folder.setModifier("1".equals(readText(xml)));
-				case "cheat" -> folder.getCodes().add(parseCheat(xml));
+				case "cheat" -> folder.getCodes().add(parseCheat(xml, pool));
 				}
 			} else if (event == END_ELEMENT && "folder".equals(xml.getLocalName())) {
 				return folder;
@@ -203,16 +210,16 @@ public class UsercheatXmlParser implements CheatFileParser {
 		return folder;
 	}
 
-	private Code parseCheat(XMLStreamReader xml) throws XMLStreamException {
+	private Code parseCheat(XMLStreamReader xml, StringPool pool) throws XMLStreamException {
 		var code = new Code();
 
 		while (xml.hasNext()) {
 			int event = xml.next();
 			if (event == START_ELEMENT) {
 				switch (xml.getLocalName()) {
-				case "name" -> code.setTitle(readText(xml));
-				case "note" -> code.setComment(readText(xml));
-				case "codes" -> code.setCodeLines(parseCodeLines(readText(xml)));
+				case "name" -> code.setTitle(readText(xml, pool));
+				case "note" -> code.setComment(readText(xml, pool));
+				case "codes" -> code.setCodeLines(parseCodeLines(readText(xml), pool));
 				}
 			} else if (event == END_ELEMENT && "cheat".equals(xml.getLocalName())) {
 				return code;
@@ -223,9 +230,10 @@ public class UsercheatXmlParser implements CheatFileParser {
 	}
 
 	/**
-	 * The code's lines, as {@code AAAAAAAA VVVVVVVV} pairs.
+	 * The code's lines, as {@code AAAAAAAA VVVVVVVV} pairs. Each is kept as written, in whatever case, and shared
+	 * through the pool by its text.
 	 */
-	private List<String> parseCodeLines(String text) {
+	private static List<String> parseCodeLines(String text, StringPool pool) {
 		if (text == null || text.isBlank()) {
 			return new ArrayList<>();
 		}
@@ -234,7 +242,7 @@ public class UsercheatXmlParser implements CheatFileParser {
 		var lines = new ArrayList<String>(tokens.length / 2);
 
 		for (int i = 0; i + 1 < tokens.length; i += 2) {
-			lines.add(tokens[i] + " " + tokens[i + 1]);
+			lines.add(pool.text(tokens[i] + " " + tokens[i + 1]));
 		}
 
 		return lines;
@@ -269,18 +277,22 @@ public class UsercheatXmlParser implements CheatFileParser {
 	 * pair, so after {@code master} the values are at positions 2–3, 6–7, 10–11 and 14–15 (0-based). A plain one is
 	 * taken as it is.
 	 */
-	private static List<String> parseFlashCartMasterCode(String codesText) {
+	private static List<String> parseFlashCartMasterCode(String codesText, StringPool pool) {
 		String[] tokens = withoutMasterPrefix(codesText).trim().split("\\s+");
 
 		if (!hasMasterPrefix(codesText)) {
-			return new ArrayList<>(List.of(tokens));
+			var result = new ArrayList<String>(tokens.length);
+			for (String token : tokens) {
+				result.add(pool.text(token));
+			}
+			return result;
 		}
 
 		int[] dataIndices = {2, 3, 6, 7, 10, 11, 14, 15};
 		var result = new ArrayList<String>(CheatFileConstants.MASTER_CODE_WORDS);
 
 		for (int idx : dataIndices) {
-			result.add(idx < tokens.length ? tokens[idx] : "00000000");
+			result.add(idx < tokens.length ? pool.text(tokens[idx]) : "00000000");
 		}
 
 		return result;
@@ -299,5 +311,12 @@ public class UsercheatXmlParser implements CheatFileParser {
 		}
 
 		return sb.toString();
+	}
+
+	/**
+	 * The element's text, shared through the pool.
+	 */
+	private String readText(XMLStreamReader xml, StringPool pool) throws XMLStreamException {
+		return pool.text(readText(xml));
 	}
 }

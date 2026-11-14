@@ -112,6 +112,7 @@ abstract class AbstractCycloDsParser implements CheatFileParser {
 
 	private List<Game> parseGameIndex(byte[] data, byte[] decryptedIndex, int gameCount, byte[] key0, byte[] key1) {
 		var usayParser = new UsayParser();
+		var pool = new StringPool();
 		var games = new ArrayList<Game>(gameCount);
 		var indexBuf = ByteBuffer.wrap(decryptedIndex).order(ByteOrder.LITTLE_ENDIAN);
 
@@ -134,7 +135,7 @@ abstract class AbstractCycloDsParser implements CheatFileParser {
 
 			try {
 				BlockResult block = decryptAndDecompress(data, fileOffsets[i], nextFileOffset, key0, key1);
-				Game game = usayParser.parse(block.usay());
+				Game game = usayParser.parse(block.usay(), pool);
 				game.setSerial(serials[i]);
 				game.setCrc32(crc32s[i]);
 				applyEnabledStates(data, fileOffsets[i], block.compressedSize(), key1, game, nextFileOffset);

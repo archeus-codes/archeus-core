@@ -22,6 +22,8 @@ import codes.archeus.core.domain.Folder;
 import codes.archeus.core.domain.Game;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -115,6 +117,66 @@ class EdgeCheatsParserTest {
 	@Test
 	void parse_evoEnabledFile_switchesOnExactlyTheCodesSavedOn() throws IOException {
 		assertThat(switchedOn(parse("/user-enabled.evoCheats"))).containsExactlyElementsOf(SWITCHED_ON);
+	}
+
+	@Test
+	void parse_repeatedLinesAndTitlesAcrossGames_shareOneString() throws IOException {
+		List<Game> games = parse("/cheats.dat");
+		Code original = games.getFirst().getCodes().getFirst();
+		var copy = new Code();
+		copy.setTitle(original.getTitle());
+		copy.setComment(original.getComment());
+		copy.setCodeLines(new ArrayList<>(original.getCodeLines()));
+		games.get(1).getCodes().add(copy);
+		var out = new ByteArrayOutputStream();
+		new EdgeCheatsWriter().write(null, games, out);
+
+		List<Game> reread = new EdgeCheatsParser().parse(new ByteArrayInputStream(out.toByteArray())).games();
+		Code first = reread.getFirst().getCodes().getFirst();
+		Code second = reread.get(1).getCodes().getLast();
+
+		assertThat(second.getCodeLines()).isEqualTo(first.getCodeLines());
+		assertThat(second.getCodeLines().getFirst()).isSameAs(first.getCodeLines().getFirst());
+		assertThat(second.getTitle()).isEqualTo("Always Correct Answer").isSameAs(first.getTitle());
+		assertThat(second.getComment()).isSameAs(first.getComment());
+	}
+
+	@Test
+	void parse_folderCommentWithTrailingSpacesInTwoGames_isTrimmedAndShared() throws IOException {
+		List<Game> games = parse("/cheats.dat");
+		for (Game game : games.subList(0, 2)) {
+			var code = new Code();
+			code.setTitle("Max Money");
+			code.setCodeLines(new ArrayList<>(List.of("12345678 00000001")));
+			var folder = new Folder();
+			folder.setTitle("Extras");
+			folder.setComment("Use with care  ");
+			folder.getCodes().add(code);
+			game.getFolders().add(folder);
+		}
+		var out = new ByteArrayOutputStream();
+		new EdgeCheatsWriter().write(null, games, out);
+
+		List<Game> reread = new EdgeCheatsParser().parse(new ByteArrayInputStream(out.toByteArray())).games();
+		String first = extras(reread.getFirst()).getComment();
+		String second = extras(reread.get(1)).getComment();
+
+		assertThat(first).isEqualTo("Use with care");
+		assertThat(second).isSameAs(first);
+	}
+
+	@Test
+	void parse_twice_doesNotShareStringsBetweenParses() throws IOException {
+		Code first = parse("/cheats.dat").getFirst().getCodes().getFirst();
+		Code second = parse("/cheats.dat").getFirst().getCodes().getFirst();
+
+		assertThat(second.getCodeLines()).isEqualTo(first.getCodeLines());
+		assertThat(second.getCodeLines().getFirst()).isNotSameAs(first.getCodeLines().getFirst());
+		assertThat(second.getTitle()).isEqualTo(first.getTitle()).isNotSameAs(first.getTitle());
+	}
+
+	private static Folder extras(Game game) {
+		return game.getFolders().stream().filter(f -> "Extras".equals(f.getTitle())).findFirst().orElseThrow();
 	}
 
 	private List<Game> parse(String resource) throws IOException {

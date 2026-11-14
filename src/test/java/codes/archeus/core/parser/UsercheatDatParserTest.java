@@ -220,12 +220,42 @@ class UsercheatDatParserTest {
 		return result;
 	}
 
-	private void parse(byte[] bytes) throws IOException {
+	@Test
+	void parse_repeatedLinesTitlesAndMasterCodeWords_shareOneString() throws IOException {
+		ParseResult result = parse(written(game("AAAA", "First"), game("BBBB", "Second")));
+		Code first = result.games().getFirst().getCodes().getFirst();
+		Code second = result.games().get(1).getCodes().getFirst();
+
+		assertThat(first.getCodeLines()).containsExactly("12345678 00000001");
+		assertThat(second.getCodeLines().getFirst()).isSameAs(first.getCodeLines().getFirst());
+		assertThat(second.getTitle()).isEqualTo("Infinite Health").isSameAs(first.getTitle());
+		assertThat(result.games().get(1).getMasterCode().getFirst())
+				.isSameAs(result.games().getFirst().getMasterCode().getFirst());
+	}
+
+	@Test
+	void parse_emptyComment_isTheEmptyLiteral() throws IOException {
+		ParseResult result = parse(written(game("AAAA", "First")));
+
+		assertThat(result.games().getFirst().getCodes().getFirst().getComment()).isSameAs("");
+	}
+
+	@Test
+	void parse_twice_doesNotShareStringsBetweenParses() throws IOException {
+		byte[] bytes = written(game("AAAA", "First"));
+
+		String first = parse(bytes).games().getFirst().getCodes().getFirst().getCodeLines().getFirst();
+		String second = parse(bytes).games().getFirst().getCodes().getFirst().getCodeLines().getFirst();
+
+		assertThat(second).isEqualTo(first).isNotSameAs(first);
+	}
+
+	private ParseResult parse(byte[] bytes) throws IOException {
 		Path file = tempDir.resolve("written.dat");
 		Files.write(file, bytes);
 
 		try (RandomAccessFile raf = new RandomAccessFile(file.toFile(), "r")) {
-			new UsercheatDatParser().parse(raf);
+			return new UsercheatDatParser().parse(raf);
 		}
 	}
 

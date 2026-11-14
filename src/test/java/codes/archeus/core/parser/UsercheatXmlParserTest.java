@@ -35,6 +35,61 @@ class UsercheatXmlParserTest {
 	}
 	
 	@Test
+	void parse_twice_doesNotShareStringsBetweenParses() throws IOException {
+		String xml = """
+				<?xml version="1.0" encoding="UTF-8"?>
+				<codelist>
+					<game>
+						<name>First</name>
+						<gameid>AAAA 0BADC0DE</gameid>
+						<cheat><name>Max Money</name><codes>12345678 9ABCDEF0 94000130 fcff0300</codes></cheat>
+					</game>
+				</codelist>
+				""";
+
+		Code first = parse(xml).games().getFirst().getCodes().getFirst();
+		Code second = parse(xml).games().getFirst().getCodes().getFirst();
+
+		assertThat(second.getCodeLines()).isEqualTo(first.getCodeLines());
+		assertThat(second.getCodeLines().get(0)).isNotSameAs(first.getCodeLines().get(0));
+		assertThat(second.getCodeLines().get(1)).isNotSameAs(first.getCodeLines().get(1));
+		assertThat(second.getTitle()).isNotSameAs(first.getTitle());
+	}
+
+	@Test
+	void parse_repeatedLinesAndTitles_shareOneStringAndKeepTheirCase() throws IOException {
+		String xml = """
+				<?xml version="1.0" encoding="UTF-8"?>
+				<codelist>
+					<game>
+						<name>First</name>
+						<gameid>AAAA 0BADC0DE</gameid>
+						<cheat><name>Max Money</name><note></note><codes>94000130 fcff0300 12345678 00000001</codes></cheat>
+					</game>
+					<game>
+						<name>Second</name>
+						<gameid>BBBB 0BADC0DE</gameid>
+						<folder>
+							<name>Max Money</name>
+							<cheat><name>Max Money</name><codes>94000130 fcff0300   94000130 FCFF0300</codes></cheat>
+						</folder>
+					</game>
+				</codelist>
+				""";
+
+		ParseResult result = parse(xml);
+		Code first = result.games().getFirst().getCodes().getFirst();
+		var folder = result.games().get(1).getFolders().getFirst();
+		Code second = folder.getCodes().getFirst();
+
+		assertThat(first.getCodeLines()).containsExactly("94000130 fcff0300", "12345678 00000001");
+		assertThat(second.getCodeLines()).containsExactly("94000130 fcff0300", "94000130 FCFF0300");
+		assertThat(second.getCodeLines().getFirst()).isSameAs(first.getCodeLines().getFirst());
+		assertThat(second.getTitle()).isSameAs(first.getTitle());
+		assertThat(folder.getTitle()).isSameAs(first.getTitle());
+	}
+
+	@Test
 	void parse_r4cceFile_readsTheCodelistAtTheRoot() throws IOException {
 		String xml = """
 				<?xml version="1.0" encoding="UTF-8"?>
@@ -167,6 +222,41 @@ class UsercheatXmlParserTest {
 				"00000000", "02000010"
 		);
 		assertThat(game.getCodes()).isEmpty();
+	}
+
+	@Test
+	void parse_masterCodeWordsRepeatedAcrossGames_shareOneString() throws IOException {
+		String xml = """
+				<?xml version="1.0" encoding="UTF-8"?>
+				<codelist>
+					<game>
+						<name>First</name>
+						<gameid>AAAA 0BADC0DE</gameid>
+						<cheat>
+							<name>(M)MasterCode</name>
+							<codes>00000000 00000001 00000000 00000000 00000000 023FF300 00000000 02000010</codes>
+						</cheat>
+					</game>
+					<game>
+						<name>Second</name>
+						<gameid>BBBB 0BADC0DE</gameid>
+						<cheat>
+							<name>(M)MasterCode</name>
+							<codes>master 00000000 00000000 00000000 00000001 00000000 00000000 00000000 00000000 00000000 00000000 00000000 023FF300 00000000 00000000 00000000 02000010 00000000 00000001</codes>
+						</cheat>
+					</game>
+				</codelist>
+				""";
+
+		var games = parse(xml).games();
+		var plain = games.getFirst().getMasterCode();
+		var prefixed = games.get(1).getMasterCode();
+
+		assertThat(prefixed).isEqualTo(plain);
+
+		for (int i = 0; i < plain.size(); ++i) {
+			assertThat(prefixed.get(i)).isSameAs(plain.get(i));
+		}
 	}
 
 	@Test

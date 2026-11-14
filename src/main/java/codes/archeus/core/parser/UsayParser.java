@@ -20,11 +20,9 @@ package codes.archeus.core.parser;
 import codes.archeus.core.domain.Code;
 import codes.archeus.core.domain.Folder;
 import codes.archeus.core.domain.Game;
-import codes.archeus.core.util.ByteUtils;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 
@@ -55,14 +53,17 @@ import java.util.Collections;
 class UsayParser {
 	private static final int FLAG_HAS_COMMENT = 0x04;
 
-	Game parse(byte[] usay) {
+	/**
+	 * Reads one game, sharing repeated strings through {@code pool}. Pass the same pool for every game in a file.
+	 */
+	Game parse(byte[] usay, StringPool pool) {
 		ByteBuffer buf = ByteBuffer.wrap(usay).order(ByteOrder.LITTLE_ENDIAN);
 		int itemCount = buf.getShort(2) & 0xFFFF;
 
 		buf.position(8);
-		String gameTitle = readNullTerminated(buf);
+		String gameTitle = pool.zeroTerminated(buf);
 
-		readNullTerminated(buf); // serial, CRC32 and date
+		skipNullTerminated(buf); // serial, CRC32 and date
 
 		var game = new Game();
 		game.setTitle(gameTitle);
@@ -75,13 +76,13 @@ class UsayParser {
 		for (int i = 0; i < itemCount && buf.remaining() >= 4; ++i) {
 			int type = buf.get(buf.position()) & 0xFF;
 			if ((type & 0x01) != 0) {
-				Folder folder = parseFolder(buf);
+				Folder folder = parseFolder(buf, pool);
 				if (folder != null) {
 					folder.setSortOrder(topLevelOrder++);
 					game.getFolders().add(folder);
 				}
 			} else {
-				Code code = parseCode(buf);
+				Code code = parseCode(buf, pool);
 				if (code != null) {
 					code.setSortOrder(topLevelOrder++);
 					game.getCodes().add(code);
@@ -93,26 +94,17 @@ class UsayParser {
 	}
 
 	/**
-	 * Reads bytes until a null terminator and advances the buffer past it.
+	 * Moves past the bytes up to a zero byte, and past the zero byte.
 	 */
-	private String readNullTerminated(ByteBuffer buf) {
-		int start = buf.position();
-
+	private static void skipNullTerminated(ByteBuffer buf) {
 		while (buf.hasRemaining() && buf.get(buf.position()) != 0) {
 			buf.get();
 		}
 
-		int end = buf.position();
-		byte[] bytes = new byte[end - start];
-
-		buf.position(start);
-		buf.get(bytes);
-		buf.get(); // consume null terminator
-
-		return new String(bytes, StandardCharsets.UTF_8);
+		buf.get(); // the zero byte
 	}
 
-	private Folder parseFolder(ByteBuffer buf) {
+	private Folder parseFolder(ByteBuffer buf, StringPool pool) {
 		if (buf.remaining() < 8) {
 			return null;
 		}
@@ -125,18 +117,18 @@ class UsayParser {
 		int contentSize = buf.getInt();
 		int folderEnd = folderStart + contentSize;
 
-		String title = readNullTerminated(buf);
+		String title = pool.zeroTerminated(buf);
 
 		var folder = new Folder();
 		folder.setTitle(title);
 		folder.setModifier((typeByte & 0x08) != 0);
 
 		if ((typeByte & 0x04) != 0) {
-			folder.setComment(readNullTerminated(buf).trim());
+			folder.setComment(pool.text(StringPool.decodeZeroTerminated(buf).trim()));
 		}
 
 		for (int i = 0; i < codeCount && buf.position() < folderEnd; ++i) {
-			Code code = parseCode(buf);
+			Code code = parseCode(buf, pool);
 			if (code != null) {
 				folder.getCodes().add(code);
 			}
@@ -150,7 +142,7 @@ class UsayParser {
 		return folder;
 	}
 
-	private Code parseCode(ByteBuffer buf) {
+	private Code parseCode(ByteBuffer buf, StringPool pool) {
 		if (buf.remaining() < 4) {
 			return null;
 		}
@@ -160,15 +152,13 @@ class UsayParser {
 		int lineCount = buf.get() & 0xFF;
 		buf.get(); // byte[3] = 0x00
 
-		String title = readNullTerminated(buf);
-		String comment = ((flags & FLAG_HAS_COMMENT) != 0) ? readNullTerminated(buf) : "";
+		String title = pool.zeroTerminated(buf);
+		String comment = ((flags & FLAG_HAS_COMMENT) != 0) ? pool.zeroTerminated(buf) : "";
 
 		var lines = new ArrayList<String>(lineCount);
 
 		for (int i = 0; i < lineCount && buf.remaining() >= 8; ++i) {
-			String addr = ByteUtils.toHex(buf.getInt());
-			String value = ByteUtils.toHex(buf.getInt());
-			lines.add(addr + " " + value);
+			lines.add(pool.line(buf));
 		}
 
 		var code = new Code();

@@ -80,7 +80,7 @@ public class UsercheatDatParser {
 		ByteBuffer buf = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN);
 		CheatFile cheatFile = parseHeader(buf);
 		List<Game> games = parseGameIndex(buf);
-		games = parseGameCodes(buf, games, listener);
+		games = parseGameCodes(buf, games, listener, new StringPool());
 		cheatFile.setGames(games);
 		return new ParseResult(cheatFile, games);
 	}
@@ -121,7 +121,7 @@ public class UsercheatDatParser {
 
 			var game = new Game();
 			game.setSerial(new String(serialBytes, StandardCharsets.US_ASCII));
-			game.setCrc32(readHex(buf));
+			game.setCrc32(ByteUtils.toHex(buf.getInt()));
 			game.setFileOffset(buf.getInt());
 			games.add(game);
 
@@ -134,14 +134,19 @@ public class UsercheatDatParser {
 	}
 
 	/**
-	 * Reads each game's title, codes and folders from its offset.
+	 * Reads each game's title, codes and folders from its offset, sharing repeated strings through {@code pool}.
 	 */
-	private List<Game> parseGameCodes(ByteBuffer buf, List<Game> games, ParseProgressListener listener) {
+	private List<Game> parseGameCodes(
+			ByteBuffer buf,
+			List<Game> games,
+			ParseProgressListener listener,
+			StringPool pool
+	) {
 		var result = new ArrayList<Game>(games.size());
 
 		for (Game game : games) {
 			try {
-				parseGame(buf, game);
+				parseGame(buf, game, pool);
 			} catch (BufferUnderflowException | IllegalArgumentException e) {
 				throw new UsercheatParserException(
 						"usrcheat.dat ends inside game %,d of %,d (%s %s)"
@@ -160,11 +165,11 @@ public class UsercheatDatParser {
 		return result;
 	}
 
-	private void parseGame(ByteBuffer buf, Game game) {
+	private void parseGame(ByteBuffer buf, Game game, StringPool pool) {
 		var buffer = new byte[4];
 
 		buf.position(game.getFileOffset());
-		game.setTitle(parseGameTitle(buf));
+		game.setTitle(parseGameTitle(buf, pool));
 		log.debug("Parsing {} [{}]", game.getTitle(), game.getSerial());
 		buf.get(buffer);
 
@@ -174,7 +179,7 @@ public class UsercheatDatParser {
 		// The first three are the number of folders and codes
 		int data = (buffer[0] & 0xFF) | ((buffer[1] & 0xFF) << 8) | ((buffer[2] & 0xFF) << 16);
 
-		game.setMasterCode(parseMasterCode(buf));
+		game.setMasterCode(parseMasterCode(buf, pool));
 
 		// Folders and codes share one order, so they're written back interleaved as they were
 		int topLevelOrder = 0;
@@ -190,18 +195,18 @@ public class UsercheatDatParser {
 				folder.setSortOrder(topLevelOrder++);
 				// Two bytes of code count, since some folders hold over 255 codes
 				int folderCodeCount = (buffer[0] & 0xFF) | ((buffer[1] & 0xFF) << 8);
-				TitleComment titleComment = parseTitleAndComment(buf);
+				TitleComment titleComment = parseTitleAndComment(buf, pool);
 				folder.setTitle(titleComment.title());
 				folder.setComment(titleComment.comment());
 				for (int j = 0; j < folderCodeCount; ++j) {
-					folder.getCodes().add(parseCode(buf));
+					folder.getCodes().add(parseCode(buf, pool));
 					++i;
 				}
 				game.getFolders().add(folder);
 			} else {
 				// A code, so read the entry again from its start
 				buf.position(entryStart);
-				Code gameCode = parseCode(buf);
+				Code gameCode = parseCode(buf, pool);
 				gameCode.setSortOrder(topLevelOrder++);
 				game.getCodes().add(gameCode);
 			}
@@ -211,18 +216,18 @@ public class UsercheatDatParser {
 	/**
 	 * Reads the game title: a string ending in a zero byte, padded to a multiple of 4 bytes.
 	 */
-	private String parseGameTitle(ByteBuffer buf) {
+	private String parseGameTitle(ByteBuffer buf, StringPool pool) {
 		int start = buf.position();
-		String title = readString(buf);
+		String title = pool.zeroTerminated(buf);
 		skipToWordBoundary(buf, start);
 		return title;
 	}
 
-	private List<String> parseMasterCode(ByteBuffer buf) {
+	private List<String> parseMasterCode(ByteBuffer buf, StringPool pool) {
 		final var masterCode = new String[CheatFileConstants.MASTER_CODE_WORDS];
 
 		for (int i = 0; i < CheatFileConstants.MASTER_CODE_WORDS; ++i) {
-			masterCode[i] = readHex(buf);
+			masterCode[i] = pool.word(buf.getInt());
 		}
 
 		return List.of(masterCode);
@@ -232,26 +237,12 @@ public class UsercheatDatParser {
 	 * Reads a folder's or code's title and comment: two strings ending in zero bytes, padded together to a multiple of
 	 * 4 bytes. Each is decoded whole, so a character that spans two chunks stays intact.
 	 */
-	private TitleComment parseTitleAndComment(ByteBuffer buf) {
+	private TitleComment parseTitleAndComment(ByteBuffer buf, StringPool pool) {
 		int start = buf.position();
-		String title = readString(buf);
-		String comment = readString(buf);
+		String title = pool.zeroTerminated(buf);
+		String comment = pool.zeroTerminated(buf);
 		skipToWordBoundary(buf, start);
 		return new TitleComment(title, comment);
-	}
-
-	/**
-	 * Reads UTF-8 bytes up to a zero byte, which it consumes.
-	 */
-	private static String readString(ByteBuffer buf) {
-		int start = buf.position();
-		int end = start;
-
-		while (buf.get() != 0) {
-			++end;
-		}
-
-		return new String(buf.array(), buf.arrayOffset() + start, end - start, StandardCharsets.UTF_8);
 	}
 
 	/**
@@ -262,14 +253,14 @@ public class UsercheatDatParser {
 		buf.position(start + ((read + 3) & ~3));
 	}
 
-	private Code parseCode(ByteBuffer buf) {
+	private Code parseCode(ByteBuffer buf, StringPool pool) {
 		var buffer = new byte[4];
 		buf.get(buffer);
 
 		var code = new Code();
 		code.setEnabled((buffer[3] & 0xF) == 1);
 
-		TitleComment titleComment = parseTitleAndComment(buf);
+		TitleComment titleComment = parseTitleAndComment(buf, pool);
 		code.setTitle(titleComment.title());
 		code.setComment(titleComment.comment());
 
@@ -277,24 +268,16 @@ public class UsercheatDatParser {
 
 		int codeLength = (buffer[0] & 0xFF) | ((buffer[1] & 0xFF) << 8);
 		var codeLines = new ArrayList<String>(codeLength / 2);
-		var codeTextBuilder = new StringBuilder();
 
 		for (int i = 0; i + 1 < codeLength; i += 2) {
-			codeTextBuilder.append(readHex(buf));
-			codeTextBuilder.append(" ").append(readHex(buf));
-			codeLines.add(codeTextBuilder.toString());
-			codeTextBuilder.setLength(0);
+			codeLines.add(pool.line(buf));
 		}
 
 		if (codeLength % 2 != 0) {
-			readHex(buf); // the padding word
+			buf.getInt(); // the padding word
 		}
 
 		code.setCodeLines(codeLines);
 		return code;
-	}
-
-	private String readHex(ByteBuffer buf) {
-		return ByteUtils.toHex(buf.getInt());
 	}
 }
