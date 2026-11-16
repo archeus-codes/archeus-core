@@ -22,7 +22,8 @@ import java.util.regex.Pattern;
 import codes.archeus.core.domain.Game;
 
 /**
- * File names for the formats with one file per game, melonDS's {@code .mch} and RetroArch's {@code .cht}.
+ * File names for the formats with one file per game: melonDS's {@code .mch}, RetroArch's {@code .cht} and DeSmuME's
+ * {@code .dct}.
  */
 public final class GameFileNames {
 	private static final Pattern UNSAFE_IN_FILE_NAMES = Pattern.compile("[\\\\/:*?\"<>|\\p{Cntrl}]");

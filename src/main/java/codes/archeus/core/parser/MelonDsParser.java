@@ -20,8 +20,7 @@ package codes.archeus.core.parser;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
+import java.io.StringReader;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -54,8 +53,8 @@ public class MelonDsParser {
 	 * Reads and checks the file, throwing {@link UsercheatParserException} wherever melonDS would refuse or change it.
 	 */
 	public Game parse(InputStream in) throws IOException {
-		BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
-		Game game = new Reading().read(reader);
+		String text = Utf8Text.decode(in.readAllBytes(), "melonDS cheat file");
+		Game game = new GameReader().read(new BufferedReader(new StringReader(text)));
 		requireOneCodeOnPerOneChoiceFolder(game);
 		return game;
 	}
@@ -74,15 +73,11 @@ public class MelonDsParser {
 		}
 	}
 
-	private static int bytes(String text) {
-		return text.getBytes(StandardCharsets.UTF_8).length;
-	}
-
 	/**
 	 * One file being read: the game so far and the reader's position in it. The {@code enter} methods set the fields that
 	 * change together.
 	 */
-	private static final class Reading {
+	private static final class GameReader {
 		private final Game game = new Game();
 		/** Where codes go; null for the top level. */
 		private Folder folder;
@@ -99,7 +94,7 @@ public class MelonDsParser {
 			while ((line = reader.readLine()) != null) {
 				++lineNumber;
 
-				if (bytes(line) > MAX_LINE_BYTES) {
+				if (Utf8Text.bytes(line) > MAX_LINE_BYTES) {
 					throw error("is longer than melonDS reads as one line");
 				}
 
@@ -190,7 +185,7 @@ public class MelonDsParser {
 				return;
 			}
 
-			if (bytes(description) > MelonDsWriter.MAX_DESCRIPTION_BYTES) {
+			if (Utf8Text.bytes(description) > MelonDsWriter.MAX_DESCRIPTION_BYTES) {
 				throw error("has a description melonDS would cut");
 			}
 
@@ -237,7 +232,7 @@ public class MelonDsParser {
 		}
 
 		private String checkedName(String name) {
-			if (bytes(name) > MelonDsWriter.MAX_NAME_BYTES) {
+			if (Utf8Text.bytes(name) > MelonDsWriter.MAX_NAME_BYTES) {
 				throw error("has a name melonDS would cut");
 			}
 

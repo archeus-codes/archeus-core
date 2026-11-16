@@ -30,21 +30,20 @@ import java.nio.charset.StandardCharsets;
 import codes.archeus.core.util.CheatFileConstants;
 
 import java.util.List;
-import java.util.regex.Pattern;
 
 /**
  * Serializes a {@link CheatFile} and its games back to the binary {@code usrcheat.dat} format.
  * The inverse of {@link UsercheatDatParser}.
  */
 public class UsercheatDatWriter implements CheatFileWriter {
-	private static final int HEADER_SIZE = 256;
-	private static final int INDEX_ENTRY_SIZE = 16;
+	static final int HEADER_SIZE = 256;
+	static final int INDEX_ENTRY_SIZE = 16;
 	private static final int MASTER_CODE_SIZE = CheatFileConstants.MASTER_CODE_WORDS * 4;
 	/** Bit 24 of a code's header word. */
 	private static final int CODE_ENABLED = 0x01000000;
 
 	/** The file's first 16 bytes. R4CCE refuses a file without them. */
-	private static final byte[] FILE_MAGIC = {
+	static final byte[] FILE_MAGIC = {
 		'R', '4', ' ', 'C', 'h', 'e', 'a', 't', 'C', 'o', 'd', 'e', 0x00, 0x01, 0x00, 0x00
 	};
 
@@ -53,15 +52,45 @@ public class UsercheatDatWriter implements CheatFileWriter {
 		(byte) 0xD5, 0x53, 0x41, 0x59
 	};
 
-	/** A line this format can store: two groups of 8 hex digits and one space. */
-	private static final Pattern WRITABLE_LINE = Pattern.compile("[0-9A-Fa-f]{8} [0-9A-Fa-f]{8}");
+	/** The start of an EZ-Flash {@code ezarcode.dat}, ending in a zero byte. */
+	static final byte[] EZ_MAGIC = "EZ ARDS CheatCode Data Base\0".getBytes(StandardCharsets.US_ASCII);
+
+	/** Where an {@code ezarcode.dat} holds its title, and the most bytes of it that leave a zero byte before 0x4C. */
+	static final int EZ_TITLE_OFFSET = 0x20;
+	static final int EZ_TITLE_BYTES = 43;
+
+	/**
+	 * The files this writer lays out: R4CCE's {@code usrcheat.dat}, or EZ-Flash's {@code ezarcode.dat} before
+	 * {@link EzArCodeWriter} XORs it. The EZ layout has its own header, no master codes, and 0 in each code header's
+	 * size field.
+	 */
+	enum Layout {
+		USRCHEAT,
+		EZARCODE
+	}
+
+	private final Layout layout;
+
+	public UsercheatDatWriter() {
+		this(Layout.USRCHEAT);
+	}
+
+	UsercheatDatWriter(Layout layout) {
+		this.layout = layout;
+	}
 
 	/**
 	 * Whether every line of a code can be written. The format stores each line as two 32-bit numbers, so a line with a
 	 * placeholder for the user to fill in, such as {@code 0000????}, can't be.
 	 */
 	public static boolean canWrite(List<String> codeLines) {
-		return codeLines.stream().allMatch(line -> WRITABLE_LINE.matcher(line).matches());
+		for (String line : codeLines) {
+			if (!isWritableLine(line)) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	@Override
@@ -91,6 +120,11 @@ public class UsercheatDatWriter implements CheatFileWriter {
 	}
 
 	private void writeHeader(ByteBuffer buf, CheatFile cheatFile) {
+		if (layout == Layout.EZARCODE) {
+			writeEzHeader(buf, cheatFile);
+			return;
+		}
+
 		int start = buf.position();
 
 		buf.put(FILE_MAGIC);
@@ -104,6 +138,20 @@ public class UsercheatDatWriter implements CheatFileWriter {
 
 		buf.position(start + 0x50);
 		buf.put(cheatFile.isEnabled() ? (byte) 0x01 : (byte) 0x00);
+
+		buf.position(start + HEADER_SIZE);
+	}
+
+	/**
+	 * The EZ header: its magic, the title cut to whole characters, and zeros for the rest, the enabled flag included.
+	 */
+	private void writeEzHeader(ByteBuffer buf, CheatFile cheatFile) {
+		int start = buf.position();
+		buf.put(EZ_MAGIC);
+
+		String title = cheatFile.getTitle() == null ? "" : cheatFile.getTitle();
+		buf.position(start + EZ_TITLE_OFFSET);
+		buf.put(title.substring(0, Utf8Text.prefixWithin(title, EZ_TITLE_BYTES)).getBytes(StandardCharsets.UTF_8));
 
 		buf.position(start + HEADER_SIZE);
 	}
@@ -162,6 +210,11 @@ public class UsercheatDatWriter implements CheatFileWriter {
 	}
 
 	private void writeMasterCode(ByteBuffer buf, List<String> masterCode) {
+		if (layout == Layout.EZARCODE) {
+			buf.put(new byte[MASTER_CODE_SIZE]);
+			return;
+		}
+
 		List<String> codes = masterCode.isEmpty() ? CheatFileConstants.NULL_MASTER_CODE : masterCode;
 
 		for (int i = 0; i < CheatFileConstants.MASTER_CODE_WORDS; ++i) {
@@ -207,7 +260,7 @@ public class UsercheatDatWriter implements CheatFileWriter {
 			buf.putInt((int) Long.parseLong(parts[1], 16));
 		}
 
-		int sizeInWords = (buf.position() - header) / 4 - 1;
+		int sizeInWords = layout == Layout.EZARCODE ? 0 : (buf.position() - header) / 4 - 1;
 		buf.putInt(header, sizeInWords | (code.isEnabled() ? CODE_ENABLED : 0));
 	}
 
@@ -341,5 +394,27 @@ public class UsercheatDatWriter implements CheatFileWriter {
 		int remainingComment = commentBytes.length - packedInTitle;
 
 		return titleSectionSize + computeCommentSectionSize(remainingComment);
+	}
+
+	/**
+	 * Whether the line is two groups of 8 hex digits with one space between, such as {@code 02000000 0000FFFF}. Checked
+	 * by hand rather than with a pattern, since it runs on every line of a full database.
+	 */
+	private static boolean isWritableLine(String line) {
+		if (line.length() != 17 || line.charAt(8) != ' ') {
+			return false;
+		}
+
+		for (int i = 0; i < 17; ++i) {
+			if (i != 8 && !isHexDigit(line.charAt(i))) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	private static boolean isHexDigit(char c) {
+		return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
 	}
 }

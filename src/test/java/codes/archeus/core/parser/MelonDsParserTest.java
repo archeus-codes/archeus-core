@@ -81,6 +81,15 @@ class MelonDsParserTest {
 	}
 
 	@Test
+	void parse_bytesThatArentUtf8_throws() {
+		byte[] file = "ROOT\nCODE 0 Caf\u00E9\n02000000 00000001\n".getBytes(StandardCharsets.ISO_8859_1);
+
+		assertThatThrownBy(() -> new MelonDsParser().parse(new ByteArrayInputStream(file)))
+				.isInstanceOf(UsercheatParserException.class)
+				.hasMessage("melonDS cheat file line 2 isn't UTF-8");
+	}
+
+	@Test
 	void parse_newerCategoryLineWithNoName_throws() {
 		assertRefused("CAT 1 \n", "line 1 is a malformed CAT line");
 	}

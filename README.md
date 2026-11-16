@@ -23,8 +23,11 @@ Nintendo DS cheat database with a website and a desktop editor:
 | Action Replay DS(i) XML | `cheats.xml` | Yes | Yes |
 | EDGE and iEDGE | `cheats.dat` | Yes | Yes |
 | CycloDS Evolution | `user.evoCheats` | Yes | Yes |
+| M3 DS Real / M3i Zero | `cheat_EN.db` | Yes | Yes |
+| EZ-Flash V (original menu) | `ezarcode.dat` | Yes | Yes |
 | melonDS | one `.mch` per game | Yes | Yes |
 | RetroArch | one `.cht` per game | Yes | Yes |
+| DeSmuME | one `.dct` per game | Yes | Yes |
 
 EDGE and CycloDS Evolution had to be reverse engineered from R4CCE with Ghidra and AI. It took many rounds of testing
 to get them working. The EDGE files are tested on a real iEDGE cart, and the CycloDS files against R4CCE's own.
@@ -49,21 +52,26 @@ try (var file = new RandomAccessFile("usrcheat.dat", "r")) {
 }
 ```
 
-The XML, EDGE and CycloDS formats work the same way through `CheatFileParser` and `CheatFileWriter`. An EDGE or
-CycloDS file holds at most 4,096 games, so split a larger database with `UsayParts.split` and write each part to its
-own file.
+The XML, EDGE, CycloDS, M3 and EZ-Flash formats work the same way through `CheatFileParser` and
+`CheatFileWriter`. An EDGE or CycloDS file holds at most 4,096 games, so split a larger database with
+`UsayParts.split` and write each part to its own file.
 
-melonDS and RetroArch read and write one game per file. Writing every game as a RetroArch `.cht`, in a
-`Nintendo - Nintendo DS` folder, where RetroArch looks for DS cheats (`Game` is in `codes.archeus.core.domain`):
+melonDS, RetroArch and DeSmuME read and write one game per file. `GameFileFormat` (`MELONDS`, `RETROARCH`,
+`DESMUME`) writes a game with only the codes its format can hold, leaving out folders left with none, and names the
+file. Writing every game as a RetroArch `.cht`, in a `Nintendo - Nintendo DS` folder, where RetroArch looks for DS
+cheats (`Game` is in `codes.archeus.core.domain`):
 
 ```java
 try (var file = new RandomAccessFile("usrcheat.dat", "r")) {
     ParseResult database = new UsercheatDatParser().parse(file);
     Path folder = Files.createDirectories(Path.of("Nintendo - Nintendo DS"));
+    GameFileFormat format = GameFileFormat.RETROARCH;
 
     for (Game game : database.games()) {
-        try (var out = Files.newOutputStream(folder.resolve(RetroArchWriter.fileName(game)))) {
-            new RetroArchWriter().write(game, out);
+        if (format.holdsAny(game)) {
+            try (var out = Files.newOutputStream(folder.resolve(format.fileName(game)))) {
+                format.write(game, out);
+            }
         }
     }
 }
@@ -105,6 +113,8 @@ It has one dependency, the SLF4J API, for logging.
   reads.
 - **The [melonDS](https://melonds.kuribo64.net) team**, whose cheat file rules the library follows when it writes and
   checks melonDS files.
+- **The [DeSmuME](https://desmume.org) team**, whose cheat file loader and `usrcheat.dat` import the library's DeSmuME
+  files follow.
 - **The [libretro](https://www.libretro.com) team**, for RetroArch and the DS cheat files in the
   [libretro database](https://github.com/libretro/libretro-database), whose layout the library's RetroArch files follow.
 - **Rimsky82**, owner and maintainer of [GameHacking.org](https://gamehacking.org), whose site offering code exports in

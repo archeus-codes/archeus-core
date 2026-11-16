@@ -63,6 +63,19 @@ public class Folder {
 		this.sortOrder = sortOrder;
 	}
 
+	/**
+	 * A copy of the folder holding these codes, with its title, comment, one at a time setting and sort order.
+	 */
+	public Folder withCodes(List<Code> codes) {
+		var copy = new Folder();
+		copy.title = title;
+		copy.comment = comment;
+		copy.modifier = modifier;
+		copy.sortOrder = sortOrder;
+		copy.codes = new ArrayList<>(codes);
+		return copy;
+	}
+
 	public List<Code> getCodes() {
 		return codes;
 	}

@@ -17,6 +17,11 @@
  */
 package codes.archeus.core.parser;
 
+import static codes.archeus.core.parser.Utf8Text.bytes;
+import static codes.archeus.core.parser.Utf8Text.cut;
+import static codes.archeus.core.parser.Utf8Text.oneLine;
+import static codes.archeus.core.parser.Utf8Text.prefixWithin;
+
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -25,7 +30,6 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
 
 import codes.archeus.core.domain.Code;
 import codes.archeus.core.domain.Folder;
@@ -64,10 +68,8 @@ public class MelonDsWriter {
 
 	/** Well under the 1,023 bytes melonDS reads as one line; a longer line fails the whole file. */
 	private static final int MAX_NOTE_BYTES = 1000;
-	private static final String CUT_MARK = "…";
 	private static final String CREDIT_PREFIX = "By ";
 	private static final String CREDIT_SEPARATOR = " | ";
-	private static final Pattern LINE_BREAKS = Pattern.compile("\\s*[\\r\\n]+\\s*");
 
 	/**
 	 * The file name for a game, such as {@code Animal Crossing - Wild World (USA) [ADME 8F7851CB].mch}
@@ -206,29 +208,6 @@ public class MelonDsWriter {
 		return UsercheatDatWriter.canWrite(code.getCodeLines());
 	}
 
-	private static String oneLine(String text) {
-		return text == null ? "" : LINE_BREAKS.matcher(text.strip()).replaceAll(" ");
-	}
-
-	/**
-	 * The text if it fits in {@code maxBytes} of UTF-8, otherwise as much as fits with the cut mark, ending at a space
-	 * when one falls in the second half.
-	 */
-	private static String cut(String text, int maxBytes) {
-		if (bytes(text) <= maxBytes) {
-			return text;
-		}
-
-		int end = prefixWithin(text, maxBytes - bytes(CUT_MARK));
-		int space = text.lastIndexOf(' ', end);
-
-		if (space > end / 2) {
-			end = space;
-		}
-
-		return text.substring(0, end).stripTrailing() + CUT_MARK;
-	}
-
 	/**
 	 * The text in lines of at most {@value #MAX_NOTE_BYTES} bytes, broken at spaces where possible.
 	 */
@@ -250,32 +229,6 @@ public class MelonDsWriter {
 
 		lines.add(rest);
 		return lines;
-	}
-
-	/**
-	 * The length of the longest prefix of whole characters that fits in {@code maxBytes} of UTF-8.
-	 */
-	private static int prefixWithin(String text, int maxBytes) {
-		int used = 0;
-		int index = 0;
-
-		while (index < text.length()) {
-			int codePoint = text.codePointAt(index);
-			int size = bytes(Character.toString(codePoint));
-
-			if (used + size > maxBytes) {
-				break;
-			}
-
-			used += size;
-			index += Character.charCount(codePoint);
-		}
-
-		return index;
-	}
-
-	private static int bytes(String text) {
-		return text.getBytes(StandardCharsets.UTF_8).length;
 	}
 
 	/**

@@ -58,20 +58,20 @@ public class RetroArchParser {
 			}
 		}
 
-		return new Reading(lines).read();
+		return new GameReader(lines).read();
 	}
 
 	/**
 	 * The file's lines without blanks, and the position in them.
 	 */
-	private static final class Reading {
+	private static final class GameReader {
 		private final List<String> lines;
 		private final Game game = new Game();
 		/** Where codes go; null for the top level. */
 		private Folder folder;
 		private int index;
 
-		Reading(List<String> lines) {
+		GameReader(List<String> lines) {
 			this.lines = lines;
 		}
 

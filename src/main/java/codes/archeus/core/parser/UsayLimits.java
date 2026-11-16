@@ -28,7 +28,8 @@ import codes.archeus.core.domain.Game;
  * Applies the limits of a USAY record (EDGE and CycloDS Evolution) to games: one byte counts a folder's codes and one
  * byte counts a code's lines. A folder with more codes is split into parts, such as {@code Items (1/8)}, each keeping
  * the folder's comment, its one at a time setting and its place among the game's entries. A code with more lines
- * can't be split, so it's left out, and so is a folder that leaves empty. The games passed in aren't changed.
+ * can't be split, so it's left out, and so is a folder left with no codes, whether its codes were left out or it had
+ * none. The games passed in aren't changed.
  */
 public final class UsayLimits {
 	/** The most codes a USAY folder can hold. */
@@ -49,7 +50,8 @@ public final class UsayLimits {
 	 */
 	public record Result(List<Game> games, List<String> split, List<String> leftOut) {
 		/**
-		 * Whether applying the limits changed anything.
+		 * Whether a folder was split or a code left out. {@link #emptyFolders(List)} lists the folders left out for
+		 * having no codes to begin with.
 		 */
 		public boolean changed() {
 			return !split.isEmpty() || !leftOut.isEmpty();
@@ -63,22 +65,26 @@ public final class UsayLimits {
 		return new Result(applied, split, leftOut);
 	}
 
-	private static Game apply(Game game, List<String> split, List<String> leftOut) {
-		var copy = new Game();
-		copy.setTitle(game.getTitle());
-		copy.setSerial(game.getSerial());
-		copy.setCrc32(game.getCrc32());
-		copy.setFileOffset(game.getFileOffset());
-		copy.setEnabled(game.isEnabled());
-		copy.setMasterCode(game.getMasterCode());
-		copy.setCodes(withinLineLimit(game, game.getCodes(), leftOut));
+	/**
+	 * The folders {@link #apply(List)} leaves out for having no codes to begin with, as
+	 * {@code game title: folder title}.
+	 */
+	public static List<String> emptyFolders(List<Game> games) {
+		return games.stream()
+				.flatMap(game -> game.getFolders().stream()
+						.filter(folder -> folder.getCodes().isEmpty())
+						.map(folder -> game.getTitle() + ": " + folder.getTitle()))
+				.toList();
+	}
 
+	private static Game apply(Game game, List<String> split, List<String> leftOut) {
+		List<Code> topLevel = withinLineLimit(game, game.getCodes(), leftOut);
 		List<Folder> folders = new ArrayList<>();
 
 		for (Folder folder : game.getFolders()) {
 			List<Code> codes = withinLineLimit(game, folder.getCodes(), leftOut);
 
-			if (codes.isEmpty() && !folder.getCodes().isEmpty()) {
+			if (codes.isEmpty()) {
 				continue;
 			}
 
@@ -97,9 +103,7 @@ public final class UsayLimits {
 			}
 		}
 
-		copy.setFolders(folders);
-
-		return copy;
+		return game.withEntries(topLevel, folders);
 	}
 
 	/**
@@ -125,12 +129,8 @@ public final class UsayLimits {
 	 * sequence.
 	 */
 	private static Folder part(Folder original, String title, List<Code> codes) {
-		var part = new Folder();
+		Folder part = original.withCodes(codes);
 		part.setTitle(title);
-		part.setComment(original.getComment());
-		part.setModifier(original.isModifier());
-		part.setSortOrder(original.getSortOrder());
-		part.setCodes(new ArrayList<>(codes));
 		return part;
 	}
 }

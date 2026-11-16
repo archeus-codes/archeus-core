@@ -66,7 +66,13 @@ public class UsercheatDatParser {
 		file.seek(0);
 		var data = new byte[(int) file.length()];
 		file.readFully(data);
+		return parse(data, listener);
+	}
 
+	/**
+	 * Reads a whole file's bytes as {@link #parse(RandomAccessFile)} does.
+	 */
+	ParseResult parse(byte[] data, ParseProgressListener listener) {
 		if (data.length < HEADER_SIZE) {
 			throw new UsercheatParserException(
 					"usrcheat.dat is %,d bytes, shorter than its %d byte header".formatted(data.length, HEADER_SIZE)

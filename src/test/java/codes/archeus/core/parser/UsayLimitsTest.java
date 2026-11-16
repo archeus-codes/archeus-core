@@ -91,7 +91,7 @@ class UsayLimitsTest {
 	}
 
 	@Test
-	void apply_folderLeftEmptyByLongCodes_isLeftOut() {
+	void apply_folderLeftEmptyOrEmptyToBeginWith_isLeftOut() {
 		Folder onlyLong = new Folder();
 		onlyLong.setTitle("Only long");
 		onlyLong.setCodes(new ArrayList<>(List.of(code("Too long", 300, 0))));
@@ -100,7 +100,17 @@ class UsayLimitsTest {
 
 		Game output = UsayLimits.apply(List.of(game(onlyLong, empty))).games().getFirst();
 
-		assertThat(output.getFolders()).extracting(Folder::getTitle).containsExactly("Empty from the start");
+		assertThat(output.getFolders()).isEmpty();
+	}
+
+	@Test
+	void emptyFolders_folderEmptyToBeginWith_listsItThoughApplyCountsNoChange() {
+		Folder empty = new Folder();
+		empty.setTitle("New Folder");
+		List<Game> games = List.of(game(empty, folder("Items", 1, false)));
+
+		assertThat(UsayLimits.emptyFolders(games)).containsExactly("Game: New Folder");
+		assertThat(UsayLimits.apply(games).changed()).isFalse();
 	}
 
 	@Test

@@ -56,6 +56,13 @@ class UsercheatDatWriterTest {
 	}
 
 	@Test
+	void canWrite_nonAsciiDigitsOrALetterPastF_isFalse() {
+		assertThat(UsercheatDatWriter.canWrite(List.of("١٢٣٤٥٦٧٨ 00000000"))).isFalse();
+		assertThat(UsercheatDatWriter.canWrite(List.of("1234567G 00000000"))).isFalse();
+		assertThat(UsercheatDatWriter.canWrite(List.of("12345678 0000000g"))).isFalse();
+	}
+
+	@Test
 	void canWrite_aLineWithoutTwoHexGroups_isFalse() {
 		assertThat(UsercheatDatWriter.canWrite(List.of("12345678"))).isFalse();
 		assertThat(UsercheatDatWriter.canWrite(List.of("123456789 00000000"))).isFalse();
@@ -188,6 +195,7 @@ class UsercheatDatWriterTest {
 			String title = "x".repeat(offset) + "ø Pokémon ポケモン";
 			String comment = "y".repeat(offset) + "Tryk på ポ";
 			texts.add(title + "|" + comment);
+
 			var code = new Code();
 			code.setTitle(title);
 			code.setComment(comment);

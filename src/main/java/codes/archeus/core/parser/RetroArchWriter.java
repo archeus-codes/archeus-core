@@ -25,7 +25,6 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
 
 import codes.archeus.core.domain.Code;
 import codes.archeus.core.domain.Folder;
@@ -52,8 +51,6 @@ import codes.archeus.core.domain.Game;
 public class RetroArchWriter {
 	public static final String EXTENSION = ".cht";
 	public static final String UNTITLED = "(untitled)";
-
-	private static final Pattern LINE_BREAKS = Pattern.compile("\\s*[\\r\\n]+\\s*");
 
 	/**
 	 * The file name for a game ({@link GameFileNames#of}), ending in {@code .cht}.
@@ -102,7 +99,7 @@ public class RetroArchWriter {
 	 * {@code '} and no trailing backslash. A blank title becomes {@value #UNTITLED}.
 	 */
 	public static String description(String title) {
-		String text = title == null ? "" : LINE_BREAKS.matcher(title.strip()).replaceAll(" ");
+		String text = Utf8Text.oneLine(title);
 		text = text.replace('"', '\'').replaceAll("\\\\+$", "").strip();
 		return text.isEmpty() ? UNTITLED : text;
 	}

@@ -99,6 +99,23 @@ public class Game {
 	}
 
 	/**
+	 * A copy of the game holding these codes and folders, with its title, serial, CRC32, file offset, enabled flag and
+	 * master code.
+	 */
+	public Game withEntries(List<Code> codes, List<Folder> folders) {
+		var copy = new Game();
+		copy.title = title;
+		copy.serial = serial;
+		copy.crc32 = crc32;
+		copy.fileOffset = fileOffset;
+		copy.enabled = enabled;
+		copy.masterCode = masterCode == null ? new ArrayList<>() : new ArrayList<>(masterCode);
+		copy.codes = new ArrayList<>(codes);
+		copy.folders = new ArrayList<>(folders);
+		return copy;
+	}
+
+	/**
 	 * The top level codes and folders in one list by {@code sortOrder}, interleaved as the file had them. Parsers
 	 * number both from one counter.
 	 */
