@@ -94,7 +94,7 @@ A project can then depend on it:
 <dependency>
   <groupId>codes.archeus</groupId>
   <artifactId>archeus-core</artifactId>
-  <version>1.1.0</version>
+  <version>1.2.0</version>
 </dependency>
 ```
 
